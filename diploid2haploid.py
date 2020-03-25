@@ -2,59 +2,64 @@
 # -*- coding: utf-8 -*-
 """
 The script converts diploid genotypes to haploid genotypes for the sex
-chromosomes of males in vcf file.
+ chromosomes of males in a vcf file. The scripts modifies only GT fields
+  with others remain. Heterozygous genotypes in the sex chromosomes of males
+  , if any, are converted to be missing.
 """
 
 import argparse
 
 __author__ = "ITO Tsuyoshi"
-__version__ = "0.1.0"
+__version__ = "0.1"
 __email__ = "ito.tsuyoshi.3a@kyoto-u.ac.jp"
 __date__ = "2020-03-25"
 
 
 def main():
-    sex = "../../list/sexlist.txt"
-    input_vcf = "../../populations_y_vcf/populations.snps.vcf"
-    output_vcf = "../../populations_y_vcf/haploid.vcf"
-    ychrom = "NC_027914.1"
-    xchrom = "NC_041774.1"
-    female = False
 
     args = get_arguments()
-
-    if args.female:
-        f_ids = []  # The id of females
-        m_ids = []  # The id of males
-        with open(args.sex) as lines:
-            for line in lines:
-                id_sex = line.split('\n')[0].split('\t')
-                if "female" in id_sex[1]:
-                    f_ids += [id_sex[0]]
-                elif "male" in id_sex[1]:
-                    m_ids += [id_sex[0]]
 
     with open(args.input_vcf, 'r') as input_vcf, \
             open(args.output_vcf, 'w') as output_vcf:
 
-        het_y = 0
-        hom_y = 0
-        mis_y = 0
-        het_x = 0
-        hom_x = 0
-        mis_x = 0
+        y_het = 0
+        y_hom = 0
+        y_mis = 0
+        x_het = 0
+        x_hom = 0
+        x_mis = 0
 
-        het_loci_y = 0
-        het_loci_x = 0
+        y_het_loci = 0
+        x_het_loci = 0
+
+        n_loci = 0
+        n_y_loci = 0
+        n_x_loci = 0
 
         for line in input_vcf:
-            if '#CHROM' in line:
-                columns = line.split('\n')[0].split('\t')
+            if not line.startswith("#"):
+                n_loci += 1
 
-                if args.female:
+            if "#CHROM" in line:
+                columns = line.split('\n')[0].split('\t')
+                n_samples = len(columns[9:])
+
+                if args.sex is not None:
+
+                    f_ids = []  # The id of females
+                    m_ids = []  # The id of males
+                    with open(args.sex) as sex_lines:
+                        for sex_line in sex_lines:
+                            id_sex = sex_line.split('\n')[0].split('\t')
+                            if "female" in id_sex[1]:
+                                f_ids += [id_sex[0]]
+                            elif "male" in id_sex[1]:
+                                m_ids += [id_sex[0]]
+
                     # This checks whether the number of samples matches between
                     # vcf file and sex assignment file
-                    if len(f_ids + m_ids) != len(columns[9:]):
+
+                    if len(f_ids + m_ids) != n_samples:
                         raise Exception("The name and number of samples must "
                                         "be consistent between input vcf "
                                         "file and sex assignment file")
@@ -76,11 +81,15 @@ def main():
                     # The samples begins at tenth columns in vcf
                     m_indexes = list(range(len(columns)))[9:]
 
+                n_males = len(m_indexes)
+
             # Y chromosome
             elif args.ychrom in line:
 
+                n_y_loci += 1
+
                 new_sample = []
-                het_y_per_sample = 0
+                y_het_sample = 0
                 for i in range(len(line.split('\n')[0].split('\t'))):
 
                     if i in m_indexes:
@@ -89,15 +98,15 @@ def main():
 
                         if gt[0] != gt[1]:
                             new_gt = '.'
-                            het_y += 1
-                            het_y_per_sample += 1
+                            y_het += 1
+                            y_het_sample += 1
 
                         else:
                             new_gt = gt[0]
                             if gt[0] == '.':
-                                mis_y += 1
+                                y_mis += 1
                             else:
-                                hom_y += 1
+                                y_hom += 1
 
                         new_sample += [
                             ':'.join(
@@ -112,13 +121,16 @@ def main():
                 new_line = '\t'.join(new_sample)
                 output_vcf.write(new_line + '\n')
 
-                if het_y_per_sample != 0:
-                    het_loci_y += 1
+                if y_het_sample != 0:
+                    y_het_loci += 1
 
+            # X chromosome
             elif args.xchrom in line:
 
+                n_x_loci += 1
+
                 new_sample = []
-                het_x_per_sample = 0
+                x_het_sample = 0
                 for i in range(len(line.split('\n')[0].split('\t'))):
                     if i in m_indexes:
                         gt = line.split('\n')[0].split('\t')[i].split(':')[
@@ -126,15 +138,15 @@ def main():
 
                         if gt[0] != gt[1]:
                             new_gt = '.'
-                            het_x += 1
-                            het_x_per_sample += 1
+                            x_het += 1
+                            x_het_sample += 1
 
                         else:
                             new_gt = gt[0]
                             if gt[0] == '.':
-                                mis_x += 1
+                                x_mis += 1
                             else:
-                                hom_x += 1
+                                x_hom += 1
 
                         new_sample += [
                             ':'.join(
@@ -146,8 +158,8 @@ def main():
                     else:
                         new_sample += [line.split('\n')[0].split('\t')[i]]
 
-                if het_x_per_sample != 0:
-                    het_loci_x += 1
+                if x_het_sample != 0:
+                    x_het_loci += 1
 
                 new_line = '\t'.join(new_sample)
                 output_vcf.write(new_line + '\n')
@@ -155,18 +167,33 @@ def main():
             else:
                 output_vcf.write(line)
 
-    # This shows the number of snps with hetero, homo, and missing
-    print("# hetero snps Y\t" + str(het_y) + " in " + str(het_loci_y) + " "
-                                                                        "loci")
-    print("# homo snps Y\t" + str(hom_y))
-    print("# missing snps Y\t" + str(mis_y))
-    print("# hetero snps X\t" + str(het_x) + " in " + str(het_loci_x) + " "
-                                                                        "loci")
-    print("# homo snps X\t" + str(hom_x))
-    print("# missing snps X\t" + str(mis_x))
+    # Output summary
+    output_prefix = args.output_vcf.split(".vcf")[0]
+    with open(output_prefix + "_summary.txt", "w") as out_sum:
+        out_sum.write(str(n_males)
+                      + " males in "
+                      + str(n_samples)
+                      + " total samples\n\n")
+
+        out_sum.write(str(n_loci) + " loci in total\n\n")
+
+        out_sum.write("Y chromosome:\n")
+        out_sum.write("\t" + str(n_y_loci) + " loci in total\n")
+        out_sum.write("\t" + str(y_het_loci) + " loci contain hetero snps\n\n")
+        out_sum.write("\t" + str(y_het) + " snps are hetero\n")
+        out_sum.write("\t" + str(y_hom) + " snps are homo\n")
+        out_sum.write("\t" + str(y_mis) + " snps are missing\n\n")
+
+        out_sum.write("X chromosome:\n")
+        out_sum.write("\t" + str(n_x_loci) + " loci in total\n")
+        out_sum.write("\t" + str(x_het_loci) + " loci contain hetero snps\n\n")
+        out_sum.write("\t" + str(x_het) + " snps are hetero\n")
+        out_sum.write("\t" + str(x_hom) + " snps are homo\n")
+        out_sum.write("\t" + str(x_mis) + " snps are missing\n")
 
 
 def get_arguments():
+
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument("-i",
@@ -196,17 +223,8 @@ def get_arguments():
                         dest="output_vcf",
                         required=False,
                         default="./output.vcf",
-                        help="The name of output vcf file. By default, "
+                        help="Name of output vcf file. By default, it is "
                              "./output.vcf")
-
-    parser.add_argument("-f",
-                        "--female",
-                        action="store_true",
-                        dest="female",
-                        required=False,
-                        default=False,
-                        help="Input vcf file contains females, disabled "
-                             "by default")
 
     parser.add_argument("-s",
                         "--sex",
@@ -214,20 +232,18 @@ def get_arguments():
                         dest="sex",
                         required=False,
                         help="File of sex assignment, required when input "
-                             "file contains females")
+                             "vcf file contains females")
 
     args = parser.parse_args()
 
-    if args.female:
-        if args.sex is None:
-            raise Exception("Sex assignment file must be specified when "
-                            "input vcf file contains females")
+    if args.sex is not None:
+        print("Sex assignment file was specified. ")
+    else:
+        print("All samples are assumed to be males. Please specify sex "
+              "assignment file if input vcf file contains ont only "
+              "males but also females.")
 
     return args
-
-
-def show_counts():
-
 
 
 if __name__ == "__main__":
