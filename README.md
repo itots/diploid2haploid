@@ -61,5 +61,5 @@ This assumes that all the samples in an input vcf file are males. If an input
 ITO Tsuyoshi
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
