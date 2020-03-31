@@ -10,9 +10,9 @@ The script converts diploid genotypes to haploid genotypes for the sex
 import argparse
 
 __author__ = "ITO Tsuyoshi"
-__version__ = "0.1"
+__version__ = "1.1"
 __email__ = "ito.tsuyoshi.3a@kyoto-u.ac.jp"
-__date__ = "2020-03-25"
+__date__ = "2020-04-01"
 
 
 def main():
@@ -41,6 +41,8 @@ def main():
                 n_loci += 1
 
             if "#CHROM" in line:
+                output_vcf.write(line)
+
                 columns = line.split('\n')[0].split('\t')
                 n_samples = len(columns[9:])
 
