@@ -242,7 +242,7 @@ def get_arguments():
         print("Sex assignment file was specified. ")
     else:
         print("All samples are assumed to be males. Please specify sex "
-              "assignment file if input vcf file contains ont only "
+              "assignment file if input vcf file contains not only "
               "males but also females.")
 
     return args
