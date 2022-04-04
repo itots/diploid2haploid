@@ -1,8 +1,8 @@
 # diploid2haploid.py
 The script converts diploid genotypes to haploid genotypes for the sex
  chromosomes of males in a vcf file. The scripts modifies only GT fields
-  with others remain. Heterozygous genotypes in the sex chromosomes of males
-  , if any, are converted to be missing.  
+  with others remain. Heterozygous genotypes in the sex chromosomes of males, 
+  if any, are converted to be missing.  
     
   The script was tested in Python 3.7 with the vcf file produced by stacks 2.5.
 
